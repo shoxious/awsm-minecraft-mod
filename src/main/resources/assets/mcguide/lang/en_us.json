@@ -1,0 +1,15 @@
+{
+  "key.mcguide.open": "Open guide",
+  "key.category.mcguide.main": "Beginner guide",
+  "key.mcguide.ores": "Toggle ore finder",
+  "key.mcguide.crops": "Toggle auto harvest",
+  "key.mcguide.chests": "Chest finder",
+  "key.mcguide.mobs": "Highlight mobs",
+  "key.mcguide.fullbright": "Fullbright",
+  "key.mcguide.zoom": "Zoom (hold)",
+  "key.mcguide.waypoint": "Set waypoint",
+  "key.mcguide.options": "Helpers menu",
+  "key.mcguide.sort": "Sort inventory",
+  "key.mcguide.feed": "Toggle auto feed",
+  "key.mcguide.light": "Light level overlay"
+}

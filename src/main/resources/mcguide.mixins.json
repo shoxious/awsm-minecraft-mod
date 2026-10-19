@@ -1,0 +1,20 @@
+{
+	"required": true,
+	"package": "de.shoxi.mcguide.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"SaplingBlockMixin"
+	],
+	"client": [
+		"MinecraftMixin",
+		"CameraMixin",
+		"EntityMixin",
+		"ContainerScreenAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

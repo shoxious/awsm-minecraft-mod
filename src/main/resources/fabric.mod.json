@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "mcguide",
+	"version": "${version}",
+	"name": "Minecraft-Guide",
+	"description": "Anfänger-Guide: /guide im Chat oder F9. Der Server prüft die Ziele und speichert den Fortschritt pro Spieler. Dazu Erz-Finder (F8, /erze) und Riesenbäume aus quadratischen Setzlingsfeldern.",
+	"authors": ["Shoxi09"],
+	"license": "CC0-1.0",
+	"icon": "assets/mcguide/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["de.shoxi.mcguide.GuideServer"],
+		"client": ["de.shoxi.mcguide.GuideClient"]
+	},
+	"mixins": ["mcguide.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
