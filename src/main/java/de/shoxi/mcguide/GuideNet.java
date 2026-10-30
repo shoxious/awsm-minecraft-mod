@@ -2,6 +2,7 @@ package de.shoxi.mcguide;
 
 import java.util.List;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -43,6 +44,58 @@ public final class GuideNet {
 
 		@Override
 		public Type<Hello> type() {
+			return TYPE;
+		}
+	}
+
+	/** Client → Server: welche Kisten in der Nähe sind noch ungeöffnet (haben eine Loot-Tabelle)? */
+	public record LootRequest() implements CustomPacketPayload {
+		public static final Type<LootRequest> TYPE = new Type<>(Identifier.fromNamespaceAndPath(GuideServer.MOD_ID, "loot_request"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, LootRequest> CODEC = StreamCodec.unit(new LootRequest());
+
+		@Override
+		public Type<LootRequest> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server → Client: ungeöffnete Loot-Blöcke und Loot-Fahrzeuge (Kistenloren, Boote). */
+	public record LootSpots(List<BlockPos> blocks, List<Integer> entities) implements CustomPacketPayload {
+		public static final Type<LootSpots> TYPE = new Type<>(Identifier.fromNamespaceAndPath(GuideServer.MOD_ID, "loot_spots"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, LootSpots> CODEC = StreamCodec.composite(
+			BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list()), LootSpots::blocks,
+			ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list()), LootSpots::entities,
+			LootSpots::new);
+
+		@Override
+		public Type<LootSpots> type() {
+			return TYPE;
+		}
+	}
+
+	/** Client → Server: nächste Struktur einer Art suchen (/finde). */
+	public record StructureRequest(String kind) implements CustomPacketPayload {
+		public static final Type<StructureRequest> TYPE = new Type<>(Identifier.fromNamespaceAndPath(GuideServer.MOD_ID, "structure_request"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, StructureRequest> CODEC = StreamCodec.composite(
+			ByteBufCodecs.STRING_UTF8, StructureRequest::kind, StructureRequest::new);
+
+		@Override
+		public Type<StructureRequest> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server → Client: Ergebnis von /finde. */
+	public record StructureFound(String kind, boolean found, BlockPos pos) implements CustomPacketPayload {
+		public static final Type<StructureFound> TYPE = new Type<>(Identifier.fromNamespaceAndPath(GuideServer.MOD_ID, "structure_found"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, StructureFound> CODEC = StreamCodec.composite(
+			ByteBufCodecs.STRING_UTF8, StructureFound::kind,
+			ByteBufCodecs.BOOL, StructureFound::found,
+			BlockPos.STREAM_CODEC, StructureFound::pos,
+			StructureFound::new);
+
+		@Override
+		public Type<StructureFound> type() {
 			return TYPE;
 		}
 	}

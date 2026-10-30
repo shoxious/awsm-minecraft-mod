@@ -3,7 +3,7 @@
   "key.category.mcguide.main": "Beginner guide",
   "key.mcguide.ores": "Toggle ore finder",
   "key.mcguide.crops": "Toggle auto harvest",
-  "key.mcguide.chests": "Chest finder",
+  "key.mcguide.chests": "Loot finder",
   "key.mcguide.mobs": "Highlight mobs",
   "key.mcguide.fullbright": "Fullbright",
   "key.mcguide.zoom": "Zoom (hold)",
@@ -12,5 +12,6 @@
   "key.mcguide.sort": "Sort inventory",
   "key.mcguide.feed": "Toggle auto feed",
   "key.mcguide.endmap": "End map (elytra)",
-  "key.mcguide.light": "Light level overlay"
+  "key.mcguide.light": "Light level overlay",
+  "key.mcguide.terrain": "Terrain brush on/off"
 }

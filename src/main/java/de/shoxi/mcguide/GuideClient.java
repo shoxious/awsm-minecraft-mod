@@ -5,6 +5,7 @@ import java.util.Set;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import net.fabricmc.api.ClientModInitializer;
@@ -46,6 +47,7 @@ public class GuideClient implements ClientModInitializer {
 	private static KeyMapping feedKey;
 	private static KeyMapping lightKey;
 	private static KeyMapping endMapKey;
+	private static KeyMapping terrainKey;
 
 	/** Letzter Stand vom Server; synced = Server hat den Guide-Mod. */
 	static final Set<String> done = new HashSet<>();
@@ -74,6 +76,8 @@ public class GuideClient implements ClientModInitializer {
 		lightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.light", InputConstants.KEY_PERIOD, category));
 		feedKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.feed", InputConstants.KEY_F12, category));
 		sortKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.sort", InputConstants.KEY_V, category));
+		terrainKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.terrain", InputConstants.UNKNOWN.getValue(), category));
+		TerrainBrush.register();
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
 			if (screen instanceof AbstractContainerScreen<?> acs) {
 				ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> EnchantAdvisor.render(acs, g));
@@ -95,10 +99,13 @@ public class GuideClient implements ClientModInitializer {
 			if (!synced) GuideServer.LOG.info("Guide-Daten vom Server empfangen ({} erledigt)", payload.done().size());
 			synced = true;
 		});
+		ClientPlayNetworking.registerGlobalReceiver(GuideNet.LootSpots.TYPE, (payload, ctx) -> Finders.onLootSpots(payload));
+		ClientPlayNetworking.registerGlobalReceiver(GuideNet.StructureFound.TYPE, (payload, ctx) -> StructureFinder.onFound(ctx.client(), payload));
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> hello());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			synced = false;
 			TreeFeller.cancel();
+			Terrain.cancel();
 			Helpers.reset();
 			AutoFeed.reset();
 			done.clear();
@@ -132,6 +139,9 @@ public class GuideClient implements ClientModInitializer {
 			while (feedKey.consumeClick()) {
 				if (mc.player != null) AutoFeed.toggle(mc);
 			}
+			while (terrainKey.consumeClick()) {
+				if (mc.player != null) TerrainBrush.toggle(mc);
+			}
 			while (endMapKey.consumeClick()) {
 				if (mc.player != null && mc.gui.screen() == null) mc.gui.setScreen(new EndMapScreen());
 			}
@@ -144,9 +154,14 @@ public class GuideClient implements ClientModInitializer {
 			Waypoints.tick(mc);
 			BastionFinder.tick(mc);
 			EndCityFinder.tick(mc);
+			AllayFinder.tick(mc);
+			OutpostFinder.tick(mc);
+			AutoTrade.tick(mc);
+			TerrainBrush.tick(mc);
 			AutoFeed.tick(mc);
 			LightOverlay.tick(mc);
 			TreeFeller.tick(mc);
+			Terrain.tick(mc);
 			AutoCrops.tick(mc);
 			// solange der Server nicht geantwortet hat, alle 2 Sekunden erneut melden
 			if (mc.player != null && !synced && ++helloTicks % 40 == 0) hello();
@@ -227,6 +242,66 @@ public class GuideClient implements ClientModInitializer {
 					Waypoints.clearTarget(Minecraft.getInstance());
 					return 1;
 				}))));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> {
+			LiteralArgumentBuilder<FabricClientCommandSource> finde = ClientCommands.literal("finde");
+			for (String kind : StructureLocate.KINDS.keySet()) {
+				finde.then(ClientCommands.literal(kind).executes(c -> StructureFinder.request(Minecraft.getInstance(), kind)));
+			}
+			dispatcher.register(finde);
+		});
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
+			ClientCommands.literal("gelaende")
+				.executes(c -> {
+					Minecraft mc = Minecraft.getInstance();
+					if (mc.player == null) return 0;
+					TerrainBrush.toggle(mc);
+					mc.player.sendSystemMessage(Component.literal(
+						"⛰ Pinsel: /gelaende schaltet ihn an/aus, /gelaende 1-4 = Größe, /gelaende huegel oder flach = Form. "
+						+ "Fläche: /gelaende ecke1 und ecke2 (auf Block schauen), dann füllen, abtragen, flach oder huegel <Höhe>. "
+						+ "Block zum Bauen in die Hand, Nachschub in die Hotbar. /gelaende stop, /gelaende weg"));
+					return 1;
+				})
+				.then(ClientCommands.argument("radius", IntegerArgumentType.integer(1, TerrainBrush.MAX_RADIUS)).executes(c -> {
+					TerrainBrush.setRadius(Minecraft.getInstance(), IntegerArgumentType.getInteger(c, "radius"));
+					return 1;
+				}))
+				.then(ClientCommands.literal("ecke1").executes(c -> {
+					Terrain.corner(Minecraft.getInstance(), 1);
+					return 1;
+				}))
+				.then(ClientCommands.literal("ecke2").executes(c -> {
+					Terrain.corner(Minecraft.getInstance(), 2);
+					return 1;
+				}))
+				.then(ClientCommands.literal("fuellen").executes(c -> {
+					Terrain.fill(Minecraft.getInstance());
+					return 1;
+				}))
+				.then(ClientCommands.literal("abtragen").executes(c -> {
+					Terrain.clear(Minecraft.getInstance());
+					return 1;
+				}))
+				// mit Ecken: Fläche einebnen, sonst Pinsel auf flach stellen
+				.then(ClientCommands.literal("flach").executes(c -> {
+					if (Terrain.hasArea()) Terrain.flatten(Minecraft.getInstance());
+					else TerrainBrush.setHill(Minecraft.getInstance(), false);
+					return 1;
+				}))
+				.then(ClientCommands.literal("huegel").executes(c -> {
+					TerrainBrush.setHill(Minecraft.getInstance(), true);
+					return 1;
+				}).then(ClientCommands.argument("hoehe", IntegerArgumentType.integer(1, 32)).executes(c -> {
+					Terrain.hill(Minecraft.getInstance(), IntegerArgumentType.getInteger(c, "hoehe"));
+					return 1;
+				})))
+				.then(ClientCommands.literal("stop").executes(c -> {
+					Terrain.stop(Minecraft.getInstance());
+					return 1;
+				}))
+				.then(ClientCommands.literal("weg").executes(c -> {
+					Terrain.forget(Minecraft.getInstance());
+					return 1;
+				}))));
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
 			ClientCommands.literal("licht").executes(c -> {
 				LightOverlay.toggle(Minecraft.getInstance());
@@ -283,7 +358,7 @@ public class GuideClient implements ClientModInitializer {
 
 	/** Fuer MinecraftMixin: Vanilla soll den Abbau gerade nicht abbrechen. */
 	public static boolean fellingBusy() {
-		return TreeFeller.busy(Minecraft.getInstance());
+		return TreeFeller.busy(Minecraft.getInstance()) || Terrain.busy(Minecraft.getInstance());
 	}
 
 	/** Beim Server melden; der antwortet mit dem Guide-Stand. */

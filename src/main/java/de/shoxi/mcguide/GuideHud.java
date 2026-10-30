@@ -27,11 +27,13 @@ final class GuideHud {
 			String wp = Waypoints.hudLine(mc);
 			if (wp != null) y = line(g, mc, wp, y, 0xFF40E0FF);
 			if (GuideClient.settings.chestFinder) {
-				y = line(g, mc, "📦 Kisten/Spawner: " + Finders.chestCount(), y, 0xFFFFC060);
+				y = line(g, mc, "📦 Loot: " + Finders.chestCount(), y, 0xFFFFC060);
 			}
 			if (TreeFeller.remaining() > 0) {
 				y = line(g, mc, TreeFeller.status(), y, 0xFFE6C88F);
 			}
+			String terrain = Terrain.status();
+			if (terrain != null) y = line(g, mc, terrain, y, 0xFFFFB040);
 			if (GuideClient.settings.autoFeed) {
 				y = line(g, mc, "🐄 Auto-Füttern an (F12)", y, 0xFFE6C8A0);
 			}

@@ -51,6 +51,10 @@ public class GuideServer implements ModInitializer {
 		PayloadTypeRegistry.clientboundPlay().register(GuideNet.Sync.TYPE, GuideNet.Sync.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(GuideNet.Toggle.TYPE, GuideNet.Toggle.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(GuideNet.Hello.TYPE, GuideNet.Hello.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(GuideNet.LootRequest.TYPE, GuideNet.LootRequest.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(GuideNet.LootSpots.TYPE, GuideNet.LootSpots.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(GuideNet.StructureRequest.TYPE, GuideNet.StructureRequest.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(GuideNet.StructureFound.TYPE, GuideNet.StructureFound.CODEC);
 
 		ServerLifecycleEvents.SERVER_STARTED.register(s -> server = s);
 		ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
@@ -73,6 +77,10 @@ public class GuideServer implements ModInitializer {
 			}
 		});
 		ServerPlayNetworking.registerGlobalReceiver(GuideNet.Toggle.TYPE, (payload, ctx) -> toggle(ctx.player(), payload.id(), false));
+		ServerPlayNetworking.registerGlobalReceiver(GuideNet.LootRequest.TYPE,
+			(payload, ctx) -> ServerPlayNetworking.send(ctx.player(), LootScan.scan(ctx.player())));
+		ServerPlayNetworking.registerGlobalReceiver(GuideNet.StructureRequest.TYPE,
+			(payload, ctx) -> ServerPlayNetworking.send(ctx.player(), StructureLocate.locate(ctx.player(), payload.kind())));
 		ServerPlayNetworking.registerGlobalReceiver(GuideNet.Hello.TYPE, (payload, ctx) -> {
 			LOG.info("Guide-Mod-Client von {} gemeldet", ctx.player().getName().getString());
 			SYNCED.remove(ctx.player().getUUID());
@@ -133,7 +141,7 @@ public class GuideServer implements ModInitializer {
 		if (fresh) {
 			p.sendSystemMessage(Component.literal("📖 Neu: dein Anfänger-Guide! ").withStyle(ChatFormatting.GOLD)
 				.append(command("[/guide]", "/guide", "Guide anzeigen"))
-				.append(Component.literal(" oder F9 mit dem Guide-Mod.").withStyle(ChatFormatting.GRAY)));
+				.append(Component.literal(" oder im Menü J mit dem Guide-Mod.").withStyle(ChatFormatting.GRAY)));
 		}
 	}
 

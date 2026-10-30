@@ -104,16 +104,20 @@ final class EnchantAdvisor {
 		for (Rec r : recs) {
 			int state = 0; // 0 fehlt, 1 zu niedrig, 2 fertig
 			String upgrade = null;
+			String owned = null; // bei Alternativen: welche man schon hat
 			for (Opt o : r.options()) {
 				int lvl = have.getOrDefault(o.id(), 0);
-				if (lvl >= o.level()) state = 2;
-				else if (lvl > 0 && state < 2) {
+				if (lvl >= o.level()) {
+					if (state < 2) owned = name(o.id(), lvl).getString();
+					state = 2;
+				} else if (lvl > 0 && state < 2) {
 					state = 1;
 					upgrade = name(o.id(), lvl).getString() + " → " + roman(o.level());
 				}
 			}
 			StringBuilder text = new StringBuilder();
-			if (state == 1) text.append(upgrade);
+			if (state == 2) text.append(owned);
+			else if (state == 1) text.append(upgrade);
 			else {
 				for (int i = 0; i < r.options().size(); i++) {
 					if (i > 0) text.append(" / ");
