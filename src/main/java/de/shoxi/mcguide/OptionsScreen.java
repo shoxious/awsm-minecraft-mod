@@ -23,17 +23,18 @@ public class OptionsScreen extends Screen {
 			new Toggle("Kisten-Finder (F6)", () -> GuideClient.settings.chestFinder, s -> s.chestFinder = !s.chestFinder),
 			new Toggle("Mobs markieren (F10)", () -> GuideClient.settings.mobGlow, s -> s.mobGlow = !s.mobGlow),
 			new Toggle("Bastion-Finder", () -> GuideClient.settings.bastionFinder, s -> s.bastionFinder = !s.bastionFinder),
-			new Toggle("Fullbright (B)", () -> GuideClient.settings.fullbright, s -> s.fullbright = !s.fullbright),
+			new Toggle("Endstadt-/Elytra-Finder", () -> GuideClient.settings.endCityFinder, s -> s.endCityFinder = !s.endCityFinder),
+			new Toggle("Fullbright (,)", () -> GuideClient.settings.fullbright, s -> s.fullbright = !s.fullbright),
 			new Toggle("Fäller/Ader-Abbau", () -> GuideClient.settings.treeFeller, s -> s.treeFeller = !s.treeFeller),
 			new Toggle("Setzlinge nachpflanzen", () -> GuideClient.settings.saplings, s -> s.saplings = !s.saplings),
 			new Toggle("Auto-Ernte (F7)", () -> GuideClient.settings.autoCrops, s -> s.autoCrops = !s.autoCrops),
 			new Toggle("Knochenmehl (Ernte)", () -> GuideClient.settings.boneMeal, s -> s.boneMeal = !s.boneMeal),
-			new Toggle("Auto-Füttern (U)", () -> GuideClient.settings.autoFeed, s -> s.autoFeed = !s.autoFeed),
+			new Toggle("Auto-Füttern (F12)", () -> GuideClient.settings.autoFeed, s -> s.autoFeed = !s.autoFeed),
 			new Toggle("Auto-Werkzeug", () -> GuideClient.settings.autoTool, s -> s.autoTool = !s.autoTool),
 			new Toggle("Auto-Essen", () -> GuideClient.settings.autoEat, s -> s.autoEat = !s.autoEat),
 			new Toggle("Auto-Fackel", () -> GuideClient.settings.autoTorch, s -> s.autoTorch = !s.autoTorch),
 			new Toggle("Fackeln auch draußen", () -> GuideClient.settings.torchOutdoor, s -> s.torchOutdoor = !s.torchOutdoor),
-			new Toggle("Licht-Anzeige (M)", () -> GuideClient.settings.lightOverlay, s -> s.lightOverlay = !s.lightOverlay),
+			new Toggle("Licht-Anzeige (.)", () -> GuideClient.settings.lightOverlay, s -> s.lightOverlay = !s.lightOverlay),
 			new Toggle("Werkzeug-Warnung", () -> GuideClient.settings.toolWarn, s -> s.toolWarn = !s.toolWarn),
 			new Toggle("Verzauberungs-Tipps", () -> GuideClient.settings.enchantHelp, s -> s.enchantHelp = !s.enchantHelp),
 			new Toggle("Koordinaten-Anzeige", () -> GuideClient.settings.coords, s -> s.coords = !s.coords));
@@ -73,7 +74,7 @@ public class OptionsScreen extends Screen {
 		super.extractRenderState(g, mouseX, mouseY, partialTick);
 		Component title = Component.literal("⚙ Helfer").withStyle(ChatFormatting.BOLD);
 		g.text(font, title, (width - font.width(title)) / 2, 16, 0xFFFFFFFF);
-		Component hint = Component.literal("Menü: J · Zoom: C halten · Wegpunkt: N · Sortieren: R im Inventar · /wp");
+		Component hint = Component.literal("Menü: J · Zoom: C halten · Wegpunkt: N · Sortieren: V im Inventar · End-Karte: H · /wp");
 		g.text(font, hint, (width - font.width(hint)) / 2, 28, 0xFFB0B4BC);
 	}
 

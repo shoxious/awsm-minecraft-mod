@@ -45,6 +45,7 @@ public class GuideClient implements ClientModInitializer {
 	private static KeyMapping sortKey;
 	private static KeyMapping feedKey;
 	private static KeyMapping lightKey;
+	private static KeyMapping endMapKey;
 
 	/** Letzter Stand vom Server; synced = Server hat den Guide-Mod. */
 	static final Set<String> done = new HashSet<>();
@@ -65,13 +66,14 @@ public class GuideClient implements ClientModInitializer {
 			new KeyMapping("key.mcguide.crops", InputConstants.KEY_F7, category));
 		chestKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.chests", InputConstants.KEY_F6, category));
 		mobKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.mobs", InputConstants.KEY_F10, category));
-		brightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.fullbright", InputConstants.KEY_B, category));
+		brightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.fullbright", InputConstants.KEY_COMMA, category));
 		zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.zoom", InputConstants.KEY_C, category));
 		waypointKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.waypoint", InputConstants.KEY_N, category));
 		optionsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.options", InputConstants.KEY_J, category));
-		lightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.light", InputConstants.KEY_M, category));
-		feedKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.feed", InputConstants.KEY_U, category));
-		sortKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.sort", InputConstants.KEY_R, category));
+		endMapKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.endmap", InputConstants.KEY_H, category));
+		lightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.light", InputConstants.KEY_PERIOD, category));
+		feedKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.feed", InputConstants.KEY_F12, category));
+		sortKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.sort", InputConstants.KEY_V, category));
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
 			if (screen instanceof AbstractContainerScreen<?> acs) {
 				ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> EnchantAdvisor.render(acs, g));
@@ -130,6 +132,9 @@ public class GuideClient implements ClientModInitializer {
 			while (feedKey.consumeClick()) {
 				if (mc.player != null) AutoFeed.toggle(mc);
 			}
+			while (endMapKey.consumeClick()) {
+				if (mc.player != null && mc.gui.screen() == null) mc.gui.setScreen(new EndMapScreen());
+			}
 			while (optionsKey.consumeClick()) {
 				if (mc.player != null && mc.gui.screen() == null) OptionsScreen.open(mc);
 			}
@@ -138,6 +143,7 @@ public class GuideClient implements ClientModInitializer {
 			Helpers.tick(mc);
 			Waypoints.tick(mc);
 			BastionFinder.tick(mc);
+			EndCityFinder.tick(mc);
 			AutoFeed.tick(mc);
 			LightOverlay.tick(mc);
 			TreeFeller.tick(mc);
@@ -287,6 +293,14 @@ public class GuideClient implements ClientModInitializer {
 			loggedNoChannel = true;
 			GuideServer.LOG.info("Server kennt den Guide-Mod (noch) nicht");
 		}
+	}
+
+	static String endMapKeyName() {
+		return endMapKey.getTranslatedKeyMessage().getString();
+	}
+
+	static boolean endMapKeyMatches(KeyEvent event) {
+		return endMapKey.matches(event);
 	}
 
 	static boolean openKeyMatches(KeyEvent event) {

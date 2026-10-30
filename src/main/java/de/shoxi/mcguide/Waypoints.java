@@ -74,7 +74,7 @@ final class Waypoints {
 		}
 	}
 
-	private static String serverKey(Minecraft mc) {
+	static String serverKey(Minecraft mc) {
 		ServerData sd = mc.getCurrentServer();
 		if (sd != null) return sd.ip;
 		if (mc.getSingleplayerServer() != null) return "einzelspieler:" + mc.getSingleplayerServer().getWorldData().getLevelName();
@@ -126,6 +126,16 @@ final class Waypoints {
 		save();
 		if (target == null) target = name;
 		return name;
+	}
+
+	/** Wegpunkt mit festem Namen an diese Stelle (der aktuellen Dimension) legen und als Ziel setzen. */
+	static void setTarget(Minecraft mc, String name, int x, int y, int z) {
+		Wp old = find(mc, name);
+		if (old != null) list(mc).remove(old);
+		list(mc).add(new Wp(name, x, y, z, dim(mc)));
+		save();
+		target = name;
+		msg(mc, "Ziel: " + name + " (" + x + " " + y + " " + z + ")");
 	}
 
 	static void target(Minecraft mc, String name) {

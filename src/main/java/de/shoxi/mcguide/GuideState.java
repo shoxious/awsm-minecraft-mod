@@ -30,6 +30,7 @@ public final class GuideState {
 	public boolean coords = true;
 	public boolean fullbright = false;
 	public boolean bastionFinder = true;
+	public boolean endCityFinder = true;
 	public boolean enchantHelp = true;
 	public boolean autoFeed = false;
 	public boolean torchOutdoor = false;

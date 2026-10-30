@@ -33,7 +33,7 @@ final class GuideHud {
 				y = line(g, mc, TreeFeller.status(), y, 0xFFE6C88F);
 			}
 			if (GuideClient.settings.autoFeed) {
-				y = line(g, mc, "🐄 Auto-Füttern an (U)", y, 0xFFE6C8A0);
+				y = line(g, mc, "🐄 Auto-Füttern an (F12)", y, 0xFFE6C8A0);
 			}
 			if (GuideClient.settings.autoCrops) {
 				line(g, mc, "🌾 Auto-Ernte an (F7)", y, 0xFFE6E68F);

@@ -11,5 +11,6 @@
   "key.mcguide.options": "Helpers menu",
   "key.mcguide.sort": "Sort inventory",
   "key.mcguide.feed": "Toggle auto feed",
+  "key.mcguide.endmap": "End map (elytra)",
   "key.mcguide.light": "Light level overlay"
 }
