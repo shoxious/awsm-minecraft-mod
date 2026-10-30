@@ -28,6 +28,8 @@ import net.minecraft.world.phys.Vec3;
  */
 final class Terrain {
 	private static final int MAX_VOLUME = 64 * 64 * 32;
+	/** /gelaende flach fuellt Mulden nur bis zu dieser Tiefe auf. */
+	private static final int FLAT_FILL = 2;
 	/** Ticks zwischen zwei gesetzten Bloecken. */
 	private static final int PLACE_DELAY = 2;
 
@@ -115,12 +117,12 @@ final class Terrain {
 		for (int x = x0; x <= x1; x++) {
 			for (int z = z0; z <= z1; z++) {
 				for (int y = level + 1; y <= top; y++) addBreak(mc, new BlockPos(x, y, z));
-				// Loecher unter der Flaeche bis zu 8 Bloecke tief auffuellen
-				for (int y = level; y >= level - 8; y--) {
-					BlockPos pos = new BlockPos(x, y, z);
-					if (!mc.level.getBlockState(pos).canBeReplaced()) break;
-					toPlace.add(pos);
-				}
+				// flache Mulden auffuellen; geht es tiefer runter (Abhang, Schlucht), nur die oberste Schicht legen,
+				// sonst entsteht an der Kante eine Wand nach unten
+				int depth = 0;
+				while (depth <= FLAT_FILL && mc.level.getBlockState(new BlockPos(x, level - depth, z)).canBeReplaced()) depth++;
+				if (depth > FLAT_FILL) depth = 1;
+				for (int y = level - depth + 1; y <= level; y++) toPlace.add(new BlockPos(x, y, z));
 			}
 		}
 		begin(p, "Einebnen auf Y " + level);
