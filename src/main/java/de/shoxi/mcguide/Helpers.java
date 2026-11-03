@@ -151,8 +151,9 @@ final class Helpers {
 		BlockPos pos = player.blockPosition();
 		BlockPos below = pos.below();
 		if (!mc.level.getBlockState(pos).isAir() || !mc.level.getBlockState(below).isFaceSturdy(mc.level, below, Direction.UP)) return;
-		// nur wo Mobs spawnen koennen: kein Blocklicht, kein (nennenswertes) Himmelslicht
-		if (mc.level.getBrightness(LightLayer.BLOCK, pos) > 0) return;
+		// schon bei schwachem Blocklicht (<= 2) setzen - hier oder ein paar Bloecke in Blickrichtung,
+		// damit der Weg vor einem hell wird; nicht bei (nennenswertem) Himmelslicht
+		if (Math.min(mc.level.getBrightness(LightLayer.BLOCK, pos), lightAhead(mc, player, pos)) > 2) return;
 		if (!GuideClient.settings.torchOutdoor && mc.level.getBrightness(LightLayer.SKY, pos) >= 8) return;
 		if (mc.level.getBlockState(below).is(BlockTags.LEAVES)) return;
 		if (torchNearby(mc, pos)) return;
@@ -184,6 +185,22 @@ final class Helpers {
 		}
 		if (slot >= 0) inv.setSelectedSlot(old);
 		torchCooldown = 10;
+	}
+
+	/** Dunkelste begehbare Stelle bis 5 Bloecke vor einem (horizontal), bis zur naechsten Wand. */
+	private static int lightAhead(Minecraft mc, LocalPlayer player, BlockPos pos) {
+		Vec3 look = player.getLookAngle();
+		Vec3 dir = new Vec3(look.x, 0, look.z);
+		if (dir.lengthSqr() < 1.0E-4) return 15;
+		dir = dir.normalize();
+		Vec3 start = Vec3.atCenterOf(pos);
+		int min = 15;
+		for (int step = 2; step <= 5; step++) {
+			BlockPos p = BlockPos.containing(start.add(dir.scale(step)));
+			if (!mc.level.getBlockState(p).isAir() && !mc.level.getBlockState(p.above()).isAir()) break;
+			if (mc.level.getBlockState(p).isAir()) min = Math.min(min, mc.level.getBrightness(LightLayer.BLOCK, p));
+		}
+		return min;
 	}
 
 	private static boolean isTorch(ItemStack st) {

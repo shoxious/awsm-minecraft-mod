@@ -27,16 +27,19 @@ import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-/** Clientseite: F9 oeffnet den Notizblock, Daten kommen vom Server. */
+/** Clientseite: Menue J -> Guide oeffnet den Notizblock, Daten kommen vom Server. */
 public class GuideClient implements ClientModInitializer {
 	public static GuideState settings;
+	private static final int UNBOUND = InputConstants.UNKNOWN.getValue();
 	private static KeyMapping openKey;
 	private static KeyMapping oreKey;
 	private static KeyMapping cropKey;
 	private static KeyMapping chestKey;
+	private static KeyMapping searchKey;
 	private static KeyMapping mobKey;
 	private static KeyMapping brightKey;
 	private static KeyMapping zoomKey;
@@ -44,6 +47,7 @@ public class GuideClient implements ClientModInitializer {
 	private static KeyMapping optionsKey;
 	private static KeyMapping sortKey;
 	private static KeyMapping feedKey;
+	private static KeyMapping terrainKey;
 	private static KeyMapping lightKey;
 
 	/** Letzter Stand vom Server; synced = Server hat den Guide-Mod. */
@@ -56,22 +60,27 @@ public class GuideClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		settings = GuideState.load();
+		// Schalter haben ab Werk keine Taste (Konflikte mit anderen Mods), alles geht ueber das Menue J
 		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(GuideServer.MOD_ID, "main"));
 		openKey = KeyMappingHelper.registerKeyMapping(
-			new KeyMapping("key.mcguide.open", InputConstants.KEY_F9, category));
+			new KeyMapping("key.mcguide.open", UNBOUND, category));
 		oreKey = KeyMappingHelper.registerKeyMapping(
-			new KeyMapping("key.mcguide.ores", InputConstants.KEY_F8, category));
+			new KeyMapping("key.mcguide.ores", UNBOUND, category));
 		cropKey = KeyMappingHelper.registerKeyMapping(
-			new KeyMapping("key.mcguide.crops", InputConstants.KEY_F7, category));
-		chestKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.chests", InputConstants.KEY_F6, category));
-		mobKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.mobs", InputConstants.KEY_F10, category));
-		brightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.fullbright", InputConstants.KEY_B, category));
+			new KeyMapping("key.mcguide.crops", UNBOUND, category));
+		chestKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.chests", UNBOUND, category));
+		searchKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.search", InputConstants.KEY_K, category));
+		ChestTracker.register();
+		mobKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.mobs", UNBOUND, category));
+		brightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.fullbright", UNBOUND, category));
 		zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.zoom", InputConstants.KEY_C, category));
 		waypointKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.waypoint", InputConstants.KEY_N, category));
 		optionsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.options", InputConstants.KEY_J, category));
-		lightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.light", InputConstants.KEY_M, category));
-		feedKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.feed", InputConstants.KEY_U, category));
-		sortKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.sort", InputConstants.KEY_R, category));
+		lightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.light", UNBOUND, category));
+		feedKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.feed", UNBOUND, category));
+		terrainKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.terrain", UNBOUND, category));
+		Terrain.register();
+		sortKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcguide.sort", InputConstants.KEY_DOWN, category));
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
 			if (screen instanceof AbstractContainerScreen<?> acs) {
 				ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> EnchantAdvisor.render(acs, g));
@@ -82,8 +91,10 @@ public class GuideClient implements ClientModInitializer {
 				});
 			}
 		});
-		ClientPlayerBlockBreakEvents.AFTER.register((level, player, pos, state) ->
-			TreeFeller.onBreak(Minecraft.getInstance(), player, pos, state));
+		ClientPlayerBlockBreakEvents.AFTER.register((level, player, pos, state) -> {
+			TreeFeller.onBreak(Minecraft.getInstance(), player, pos, state);
+			ChestTracker.onBreak(Minecraft.getInstance(), pos);
+		});
 
 		ClientPlayNetworking.registerGlobalReceiver(GuideNet.Sync.TYPE, (payload, ctx) -> {
 			done.clear();
@@ -93,6 +104,8 @@ public class GuideClient implements ClientModInitializer {
 			if (!synced) GuideServer.LOG.info("Guide-Daten vom Server empfangen ({} erledigt)", payload.done().size());
 			synced = true;
 		});
+		ClientPlayNetworking.registerGlobalReceiver(GuideNet.LootSpots.TYPE, (payload, ctx) -> Finders.onLootSpots(payload));
+		ClientPlayNetworking.registerGlobalReceiver(GuideNet.StructureFound.TYPE, (payload, ctx) -> StructureFinder.onFound(ctx.client(), payload));
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> hello());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			synced = false;
@@ -127,8 +140,14 @@ public class GuideClient implements ClientModInitializer {
 			while (lightKey.consumeClick()) {
 				if (mc.player != null) LightOverlay.toggle(mc);
 			}
+			while (terrainKey.consumeClick()) {
+				if (mc.player != null) Terrain.toggle(mc);
+			}
 			while (feedKey.consumeClick()) {
 				if (mc.player != null) AutoFeed.toggle(mc);
+			}
+			while (searchKey.consumeClick()) {
+				if (mc.player != null && mc.gui.screen() == null) ChestSearchScreen.open(mc, "");
 			}
 			while (optionsKey.consumeClick()) {
 				if (mc.player != null && mc.gui.screen() == null) OptionsScreen.open(mc);
@@ -138,7 +157,21 @@ public class GuideClient implements ClientModInitializer {
 			Helpers.tick(mc);
 			Waypoints.tick(mc);
 			BastionFinder.tick(mc);
+			AllayFinder.tick(mc);
+			OutpostFinder.tick(mc);
 			AutoFeed.tick(mc);
+			Terrain.tick(mc);
+			AutoTrade.tick(mc);
+			Relocate.tick(mc);
+			ChestTracker.tick(mc);
+			ChestSorter.tick(mc);
+			StorageView.tick(mc);
+			// laufende Automatik (z. B. ueber die lokale Schnittstelle gesteuert): Pausenmenue bei Fokusverlust stoert nur
+			if ((Blueprint.running() || ChestSorter.running()) && mc.gui.screen() instanceof net.minecraft.client.gui.screens.PauseScreen) {
+				mc.options.pauseOnLostFocus = false;
+				mc.gui.setScreen(null);
+			}
+			Blueprint.tick(mc);
 			LightOverlay.tick(mc);
 			TreeFeller.tick(mc);
 			AutoCrops.tick(mc);
@@ -147,6 +180,7 @@ public class GuideClient implements ClientModInitializer {
 		});
 		GuideHud.register();
 		BotMode.register();
+		LocalApi.start();
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
 			ClientCommands.literal("erze")
@@ -170,6 +204,56 @@ public class GuideClient implements ClientModInitializer {
 					OreFinder.setRadius(Minecraft.getInstance(), IntegerArgumentType.getInteger(c, "umkreis"));
 					return 1;
 				}))));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
+			ClientCommands.literal("kisten")
+				.executes(c -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.schedule(() -> ChestSearchScreen.open(mc, ""));
+					return 1;
+				})
+				.then(ClientCommands.literal("übernehmen")
+					.executes(c -> claim(16))
+					.then(ClientCommands.argument("umkreis", IntegerArgumentType.integer(1, 48)).executes(c -> claim(IntegerArgumentType.getInteger(c, "umkreis")))))
+				.then(ClientCommands.literal("vergessen").executes(c -> {
+					Minecraft mc = Minecraft.getInstance();
+					ChestTracker.forget(mc);
+					c.getSource().sendFeedback(Component.literal("Kisten-Gedächtnis gelöscht").withStyle(ChatFormatting.YELLOW));
+					return 1;
+				}))
+				.then(ClientCommands.argument("suche", com.mojang.brigadier.arguments.StringArgumentType.greedyString()).executes(c -> {
+					Minecraft mc = Minecraft.getInstance();
+					String q = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "suche");
+					mc.schedule(() -> ChestSearchScreen.open(mc, q));
+					return 1;
+				}))));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
+			ClientCommands.literal("umzug").executes(c -> {
+				Relocate.toggle(Minecraft.getInstance());
+				return 1;
+			})));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
+			ClientCommands.literal("lager").executes(c -> {
+				Minecraft mc = Minecraft.getInstance();
+				mc.execute(() -> ChestSorter.design(mc));
+				return 1;
+			}).then(ClientCommands.literal("ansehen").executes(c -> {
+				StorageView.dump(Minecraft.getInstance());
+				return 1;
+			})).then(ClientCommands.literal("bauplan").executes(c -> {
+				Minecraft mc = Minecraft.getInstance();
+				mc.execute(() -> Blueprint.start(mc));
+				return 1;
+			}))));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
+			ClientCommands.literal("sortieren").executes(c -> {
+				Minecraft mc = Minecraft.getInstance();
+				mc.execute(() -> ChestSorter.start(mc)); // erst nach dem Schliessen des Chats
+				return 1;
+			}).then(ClientCommands.literal("vergessen").executes(c -> {
+				ItemCategories.forget();
+				c.getSource().sendFeedback(Component.literal("Gemerkte Zuordnungen gelöscht – beim nächsten /sortieren wird neu entschieden"));
+				return 1;
+			}))));
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
 			ClientCommands.literal("ernte")
 				.executes(c -> {
@@ -221,6 +305,13 @@ public class GuideClient implements ClientModInitializer {
 					Waypoints.clearTarget(Minecraft.getInstance());
 					return 1;
 				}))));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> {
+			var finde = ClientCommands.literal("finde");
+			for (String kind : StructureLocate.KINDS.keySet()) {
+				finde.then(ClientCommands.literal(kind).executes(c -> StructureFinder.request(Minecraft.getInstance(), kind)));
+			}
+			dispatcher.register(finde);
+		});
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
 			ClientCommands.literal("licht").executes(c -> {
 				LightOverlay.toggle(Minecraft.getInstance());
@@ -230,6 +321,24 @@ public class GuideClient implements ClientModInitializer {
 			ClientCommands.literal("fackeln")
 				.then(ClientCommands.literal("draussen").executes(c -> setTorchOutdoor(true)))
 				.then(ClientCommands.literal("hoehle").executes(c -> setTorchOutdoor(false)))));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
+			ClientCommands.literal("gelaende")
+				.executes(c -> {
+					Terrain.toggle(Minecraft.getInstance());
+					return 1;
+				})
+				.then(ClientCommands.literal("huegel").executes(c -> {
+					Terrain.setHill(Minecraft.getInstance(), true);
+					return 1;
+				}))
+				.then(ClientCommands.literal("flach").executes(c -> {
+					Terrain.setHill(Minecraft.getInstance(), false);
+					return 1;
+				}))
+				.then(ClientCommands.argument("radius", IntegerArgumentType.integer(1, Terrain.MAX_RADIUS)).executes(c -> {
+					Terrain.setRadius(Minecraft.getInstance(), IntegerArgumentType.getInteger(c, "radius"));
+					return 1;
+				}))));
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
 			ClientCommands.literal("fuettern").executes(c -> {
 				AutoFeed.toggle(Minecraft.getInstance());
@@ -309,5 +418,13 @@ public class GuideClient implements ClientModInitializer {
 		ClientPlayNetworking.send(new GuideNet.Toggle(id));
 		// sofort anzeigen, der Server bestaetigt mit einem Sync
 		if (!done.remove(id)) done.add(id);
+	}
+
+	private static int claim(int radius) {
+		Minecraft mc = Minecraft.getInstance();
+		int n = ChestTracker.claim(mc, radius);
+		if (mc.player != null) mc.player.sendSystemMessage(Component.literal("Kisten: " + n + " Behälter im Umkreis " + radius
+			+ " übernommen (insgesamt " + ChestTracker.count(mc) + "). Inhalte werden beim nächsten Öffnen gemerkt – z. B. mit /sortieren.").withStyle(ChatFormatting.GREEN));
+		return 1;
 	}
 }

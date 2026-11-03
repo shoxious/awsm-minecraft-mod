@@ -56,12 +56,12 @@ public class GuideScreen extends Screen {
 			s.save();
 			b.setMessage(hudLabel());
 		}).bounds(x, height - 26, W / 2 - 2, 20).build());
-		addRenderableWidget(Button.builder(Component.literal("Schließen (F9)"), b -> onClose())
+		addRenderableWidget(Button.builder(Component.literal("Schließen"), b -> onClose())
 			.bounds(x + W / 2 + 2, height - 26, W / 2 - 2, 20).build());
 	}
 
 	private static Component oreLabel() {
-		return Component.literal("Erz-Finder (F8): " + (GuideClient.settings.oreFinder ? "an" : "aus"));
+		return Component.literal("Erz-Finder: " + (GuideClient.settings.oreFinder ? "an" : "aus"));
 	}
 
 	private static Component radiusLabel() {

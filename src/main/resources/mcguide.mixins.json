@@ -9,7 +9,8 @@
 		"MinecraftMixin",
 		"CameraMixin",
 		"EntityMixin",
-		"ContainerScreenAccessor"
+		"ContainerScreenAccessor",
+		"SignEditScreenAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -2,7 +2,9 @@ package de.shoxi.mcguide;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -13,16 +15,37 @@ import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /**
  * Sortiert per normaler Klicks (laeuft auch auf Vanilla-Servern):
  * in Kisten/Shulkern die Kiste, sonst das Hauptinventar ohne Schnellleiste.
+ * Erst werden angefangene Stapel zusammengelegt, dann geordnet wie im Kreativ-Inventar
+ * (Baubloecke, Natur, Werkzeuge, Kampf, Essen, ...).
  */
 final class InventorySort {
-	private static final Comparator<ItemStack> ORDER = Comparator
-		.comparing((ItemStack s) -> BuiltInRegistries.ITEM.getKey(s.getItem()).toString())
-		.thenComparing(Comparator.comparingInt(ItemStack::getCount).reversed());
+	/** Position im Kreativ-Inventar; einmal pro Welt aufgebaut. */
+	private static Map<Item, Integer> creativeOrder;
+	private static Object orderLevel;
+
+	static Comparator<ItemStack> order(Minecraft mc) {
+		if (creativeOrder == null || orderLevel != mc.level) {
+			CreativeModeTabs.tryRebuildTabContents(mc.player.connection.enabledFeatures(), false, mc.level.registryAccess());
+			creativeOrder = new IdentityHashMap<>();
+			for (CreativeModeTab tab : CreativeModeTabs.tabs()) {
+				for (ItemStack st : tab.getDisplayItems()) creativeOrder.putIfAbsent(st.getItem(), creativeOrder.size());
+			}
+			orderLevel = mc.level;
+		}
+		// was in keinem Reiter steht, kommt ans Ende, untereinander nach Registry-Reihenfolge
+		Map<Item, Integer> pos = creativeOrder;
+		return Comparator.comparingInt((ItemStack s) -> pos.getOrDefault(s.getItem(), pos.size() + BuiltInRegistries.ITEM.getId(s.getItem())))
+			.thenComparing(s -> s.getHoverName().getString())
+			.thenComparing(Comparator.comparingInt(ItemStack::getCount).reversed());
+	}
 
 	static void sort(Minecraft mc, AbstractContainerScreen<?> screen) {
 		if (mc.player == null || mc.gameMode == null) return;
@@ -35,12 +58,14 @@ final class InventorySort {
 			boolean playerInv = s.container == inv;
 			if (chest ? !playerInv : playerInv && s.getContainerSlot() >= 9 && s.getContainerSlot() < 36) slots.add(s);
 		}
+		if (!merge(mc, menu, slots)) return;
+		Comparator<ItemStack> order = order(mc);
 		for (int i = 0; i < slots.size(); i++) {
 			int best = -1;
 			for (int j = i; j < slots.size(); j++) {
 				ItemStack st = slots.get(j).getItem();
 				if (st.isEmpty()) continue;
-				if (best < 0 || ORDER.compare(st, slots.get(best).getItem()) < 0) best = j;
+				if (best < 0 || order.compare(st, slots.get(best).getItem()) < 0) best = j;
 			}
 			if (best < 0) break;
 			if (best == i) continue;
@@ -49,6 +74,23 @@ final class InventorySort {
 			if (!menu.getCarried().isEmpty()) click(mc, menu, slots.get(best));
 			if (!menu.getCarried().isEmpty()) return; // unerwartet, lieber aufhoeren
 		}
+	}
+
+	/** Angefangene Stapel gleicher Items auffuellen: hinteren aufnehmen, auf den vorderen legen, Rest zurueck. */
+	private static boolean merge(Minecraft mc, AbstractContainerMenu menu, List<Slot> slots) {
+		for (int i = 0; i < slots.size(); i++) {
+			for (int j = i + 1; j < slots.size(); j++) {
+				ItemStack a = slots.get(i).getItem();
+				if (a.isEmpty() || a.getCount() >= a.getMaxStackSize()) break;
+				ItemStack b = slots.get(j).getItem();
+				if (b.isEmpty() || !ItemStack.isSameItemSameComponents(a, b)) continue;
+				click(mc, menu, slots.get(j));
+				click(mc, menu, slots.get(i));
+				if (!menu.getCarried().isEmpty()) click(mc, menu, slots.get(j));
+				if (!menu.getCarried().isEmpty()) return false; // unerwartet, lieber aufhoeren
+			}
+		}
+		return true;
 	}
 
 	private static void click(Minecraft mc, AbstractContainerMenu menu, Slot slot) {

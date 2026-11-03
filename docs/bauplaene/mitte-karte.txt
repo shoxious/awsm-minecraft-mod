@@ -1,0 +1,93 @@
+Mittlere Ebene: pro Feld der oberste interessante Block zwischen y123 und y127 (x -1452..-1396 nach rechts, z 1018..1044 nach unten)
+Legende: f Ackerboden w Weizen ~ Wasser C Kiste H Trichter g Glas S Steinziegel i Bruchsteinmauer K Komposter b Braustand t Fackel/Bognertisch = Schiene _ Steinstufe c Teppich/Bruchstein D Spender/Tür / Treppe # Kirschbretter | Kirschstamm x Bambusfalltür o Leuchtblock , Gras d Erde s Stein l Hebel r Redstone . Luft ? anderes
+Hinweis: Das Haus (Erdgeschoss y129) liegt über z1023..1032; sein Boden ist y128. Darunter (y124-127) liegt bei x -1415..-1397 ein Keller mit Weizenfeld.
+Spalte 0 = x -1452
+
+--- y=124 ---
+1018 sssssssssssssssssssssssssssssssssssssssssssssss??ssssssss
+1019 sssssssssssssssssssssssssssssssssssssssssssssssssssssss.s
+1020 ssssssssssssssssssssssssssssssssssssdssssssssssssssssss.s
+1021 sssssssssssssssssssssssssssssssss?sddssssssssssssssssssss
+1022 ssss.....................................?i..,,,,,,,,,,,s
+1023 ssss......................................i..,fffffffff,s
+1024 ssss...........................t......t...iii,fffffffff,s
+1025 ssss...............t.........................,fffffffff,s
+1026 ssss.........t.........................===...,fffffffff,s
+1027 dsss...................................=.....,ffff?ffff,s
+1028 dddd...................................=....b,fffffffff,s
+1029 dddd...t.................t.............=.....,fffffffff,s
+1030 dddd..............................======....t,fffffffff,s
+1031 dddd..............................=..SSSSSSSS,fffffffff,s
+1032 dd,,..............................=..?srH=...,,,,,,,,,,,s
+1033 dd,dS.............................=.SSSSCCSSS....?.....Ss
+1034 dddd..............................=t..........?t......?.s
+1035 dddd........t.....................==...............CC...s
+1036 dddd.....................S.......S.=============..sc.t..s
+1037 dddd...................../////////............?=..??sssss
+1038 ,ddd...........................................=..??sssss
+1039 ,,dd...........................................=..??sssss
+1040 .,,d...........................................=..ss....s
+1041 ..,d...t......t...t....t......t....t..........t=........s
+1042 ...d...........................................=......?tS
+1043 ...S...........................................=........S
+1044 ...S....................................................S
+
+--- y=125 ---
+1018 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssd
+1019 sssssssssssssssssssssssssssssssssssssssssssssssssssssss.d
+1020 ssssssssssssssssssssssssssssssssssss,dsssssssssssssssss.d
+1021 ssss.sssssssssssssssssssssssssssssddddsssssssssssssssdssd
+1022 ssss.........................................iiiiiiiiiiid
+1023 ssss.........................................iwwwwwwwwwid
+1024 ssss......................................t..iwwwwwwwwwis
+1025 ssss.........................................iwwwwwwwwwis
+1026 ssss.........................................iwwwwwwwwwis
+1027 ddds.........................................iwwwwKwwwwis
+1028 dddd.........................................iwwwwwwwwwis
+1029 dddd.........................................iwwwwwwwwwis
+1030 dd,,.........................................iwwwwwwwwwis
+1031 dd,d.................................SSSSSSSSiwwwwwwwwwis
+1032 dd...................................srs=....iiiiiiiiiiis
+1033 dd.dS................................SSS..SSS..........Ss
+1034 ,,,d....................................................s
+1035 ,,,d.....................S.......S......................s
+1036 ,,,d...................../////////................gg....s
+1037 ,,,d..............................................ggsrrrs
+1038 .,,d..............................................g.Drrrs
+1039 ..,d..............................................ggsrrrs
+1040 ...d..............................................gg....s
+1041 ..?S....................................................d
+1042 ...S....................................................S
+1043 ...S....................................................S
+1044 ...S.....................................................
+
+--- y=126 ---
+1018 sssssssssssssssssssssssssssssssssssssssssssssssssssssdd.,
+1019 sssssssssssssssssssssssssssssssssssssssssssssssssssssdd,,
+1020 ssssssssssssssssssssssssssssssssssdd.dsssssssssssssssdd,,
+1021 ssss.sssssssssssssssssssssss.s.ssddddddssssssssssssssdSSS
+1022 ssss..t....t...t..t..t...t...t....t...t....t......t....tS
+1023 ssss....................................................S
+1024 ssss....................................................S
+1025 ssss....................................................S
+1026 ,sss.............................................xxx....S
+1027 ,,dd.............................................xox....s
+1028 ,,dd.............................................xxx....s
+1029 ,,dd....................................................s
+1030 ,,......................................t...............s
+1031 ,,.d.................................SSSSSSSS...........s
+1032 ,,.d.................................S.................ts
+1033 ,,.dS................................SSSSSSSS..........Ss
+1034 ...d.....................S.......S......?...............s
+1035 ?..d...................../////////......................s
+1036 ...d..............................................gg....s
+1037 ...S..............................................g.HHH.s
+1038 ..?S..............................................g.HHH.S
+1039 ...S..............................................g.HHH.S
+1040 ...S..............................................gg....S
+1041 ...S....................................................S
+1042 ...S....................................................S
+1043 ...S....................................................S
+1044 ...S.....................................................
+
+Zählung y123-127: [('stone_bricks', 369), ('rail', 123), ('farmland', 80), ('wheat', 80), ('cobblestone_wall', 45), ('stone_brick_stairs', 39), ('glass', 37), ('powered_rail', 33), ('torch', 19), ('wall_torch', 14), ('hopper', 14), ('white_carpet', 9), ('bamboo_trapdoor', 8), ('redstone_wire', 8), ('chest', 6), ('redstone_torch', 3), ('comparator', 3), ('repeater', 3), ('cherry_sapling', 3), ('lava_cauldron', 3), ('spruce_fence', 3), ('cherry_planks', 2), ('crafting_table', 1), ('cobblestone_stairs', 1), ('composter', 1), ('shroomlight', 1), ('brewing_stand', 1), ('fletching_table', 1), ('redstone_wall_torch', 1), ('spruce_wall_sign', 1)]

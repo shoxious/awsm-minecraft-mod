@@ -128,6 +128,16 @@ final class Waypoints {
 		return name;
 	}
 
+	/** Wegpunkt an fester Stelle setzen (ersetzt gleichnamigen) und als Ziel waehlen. */
+	static void point(Minecraft mc, String name, int x, int y, int z, String dim) {
+		Wp old = find(mc, name);
+		if (old != null) list(mc).remove(old);
+		list(mc).add(new Wp(name, x, y, z, dim));
+		save();
+		target = name;
+		msg(mc, "Ziel: " + name + " (" + x + " " + y + " " + z + ") – /wp weg " + name + " löscht ihn");
+	}
+
 	static void target(Minecraft mc, String name) {
 		Wp w = find(mc, name);
 		if (w == null) {

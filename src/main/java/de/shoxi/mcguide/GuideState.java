@@ -30,8 +30,15 @@ public final class GuideState {
 	public boolean coords = true;
 	public boolean fullbright = false;
 	public boolean bastionFinder = true;
+	public boolean allayFinder = true;
+	public boolean outpostFinder = true;
+	public boolean terrainMode = false;
+	public int terrainRadius = 2;
+	public boolean terrainHill = true;
 	public boolean enchantHelp = true;
 	public boolean autoFeed = false;
+	public boolean autoTrade = false;
+	public boolean relocate = false;
 	public boolean torchOutdoor = false;
 	public boolean lightOverlay = false;
 	public boolean boneMeal = true;
