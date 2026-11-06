@@ -22,7 +22,7 @@ Der Token steht in `config/mcguide-api.json`. Mit `tools/mc.sh METHOD PFAD [BODY
 
 | Endpunkt | Zweck |
 |---|---|
-| `GET /status` | Position, Blick, Inventar, Bauplan-Fortschritt, letzte Meldungen |
+| `GET /status` | Position, Blick, `leben`, `hunger`, `zeit` (0–24000), `nacht`, Inventar, Bauplan-Fortschritt, letzte Meldungen |
 | `GET /bereich?von=x,y,z&bis=x,y,z` | Blöcke im Quader, max. 100k (Luft wird weggelassen) |
 | `GET /wesen` | Tiere, Items am Boden, Rüstungsständer im Umkreis 80 |
 | `GET /inhalt` | zuletzt notierter Kisteninhalt (Bauplan-Schritt `inhalt` frischt ihn auf) |
@@ -31,7 +31,12 @@ Der Token steht in `config/mcguide-api.json`. Mit `tools/mc.sh METHOD PFAD [BODY
 | `POST /screenshot` | Screenshot nach `minecraft/screenshots` |
 
 Den Bauplan-Aufbau findest du in `Blueprint.java` (`record Step`). Wichtige Aktionen:
-- **Bauen:** `goto`, `place` (mit `click`, `face`, `hit` relativ zum Klickblock, `yaw`/`pitch`, neu: `"schleichen": true`, um an Truhen und Trichter anzubauen), `break`.
+- **Laufen:** `lauf` (pos) = Wegsuche mit A*: um Wände herum, Treppen, Leitern, Holztüren auf und hinter sich zu, Eisentüren und Lava meiden. **Immer `lauf` statt `goto` nehmen**, `goto` läuft nur geradeaus.
+- **Holz:** `wachsen` (pos = Setzling, Knochenmehl bis Stamm) und `baum` (pos = Stammfuß: fällen inkl. Erdtürmchen; stoppt den Plan, wenn die Axt unter 300 Haltbarkeit fällt).
+- **Ablegen gezielt:** `ablegen` mit `item` legt nur dieses Item ab (auch aus der Schnellleiste, Werkzeug bleibt).
+- **Sicherheit:** In Plänen mit `nacht`/`bett` geht die Figur schon in der Dämmerung (Zeit 11500) heim und morgens per `lauf` zurück an die Arbeitsstelle. Sieht sie ein Monster in ≤ 12 Blöcken, zieht sie sich ins Haus zurück (`warten`) und macht danach weiter. Kein Kampf. `POST /weiter` belebt nach dem Tod wieder.
+- **Essen:** `essen` isst Essen aus der Schnellleiste, bis der Hunger voll ist. Fällt der Hunger während eines Bauplans unter 12, isst die Figur automatisch.
+- **Bauen:** `goto` (nur gerade Strecken), `place` (mit `click`, `face`, `hit` relativ zum Klickblock, `yaw`/`pitch`, neu: `"schleichen": true`, um an Truhen und Trichter anzubauen), `break`.
 - **Kisten:** `holen` nimmt immer ganze Stapel. `ablegen` legt das Hauptinventar ab, mit `"sortieren": true` auch die Schnellleiste, ohne Werkzeug, Essen und Fackeln. `leeren` nimmt den Inhalt eines Behälters ins Inventar.
 - **Verarbeiten:** `craft` (Raster mit 9 IDs, `count` = Anzahl Crafts pro Feld, das Ergebnis braucht freien Platz!), `use`, `ofen`, `saege`.
 - **Sonstiges:** `sortieren`, `inhalt`, `klettern`, `schlafen`, `anziehen`.
@@ -51,6 +56,8 @@ Helfer in `tools/`:
 - **Inventar:** In der Schnellleiste liegen immer 1 Stapel Essen und 1 Stapel Fackeln, im Inventar immer Pfeile.
   Nach jedem Sortieren nachprüfen!
 - **Kaputt:** Es darf nichts kaputtgehen. Über der unteren Halle (y123+) liegen Farmen.
+- **Südtor:** Durch das Südtor (Eisentür z1066) **nie** hinausgehen. Holztüren werden angeklickt, Eisentüren haben Knöpfe.
+- **Gelände:** Die ganze Burg ist in `docs/gelaende.md` beschrieben, mit Ebenen, Treppen, Leitern und Türen.
 - **Stopp:** Wenn der Nutzer „stop“ schreibt, sofort `POST /stop`.
 
 ## Was gebaut ist

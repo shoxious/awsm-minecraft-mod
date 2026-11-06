@@ -1,0 +1,8 @@
+- [Minecraft-Haus offen](minecraft-haus-offen.md) — Ton/Blumentöpfe später; Burg-Halle unten mit Hobbit-Front zu, darüber Farmen nicht beschädigen
+- [Minecraft Material-Regel](minecraft-material-regel.md) — nur Kistenmaterial, Farm-Liste, nie zur Haustür hinaus, Fenster frei
+- [Minecraft Nachtruhe](minecraft-nachtruhe.md) — bei Automatik nachts immer ins Haus schlafen gehen (nacht/morgen-Weg im Bauplan)
+- [Minecraft Essen in Leiste](minecraft-essen-leiste.md) — immer 1 Stapel Essen + 1 Stapel Fackeln in der Leiste, Pfeile im Inventar; Sortieren darf es nicht wegräumen
+- [Minecraft Kirschholz](minecraft-kirschholz.md) — Fässer/Nutzblöcke nie aus Kirschholz, immer Fichte
+- [Minecraft Südtor](minecraft-suedtor.md) — Burg-Südtor (Eisentür z1066) NIE verlassen; Türen anklicken/Knopf
+- [Minecraft Laufen](minecraft-laufen.md) — immer `lauf` (Wegsuche) statt goto; Geländekarte docs/gelaende.md
+- [Minecraft Automatik-Sicherheit](minecraft-automatik-sicherheit.md) — neue Abläufe erst beaufsichtigt testen, bei Automatik nur Nötiges dabei, Wertvolles im Lager

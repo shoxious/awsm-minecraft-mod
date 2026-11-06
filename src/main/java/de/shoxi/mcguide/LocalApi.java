@@ -145,6 +145,10 @@ final class LocalApi {
 					onClient(mc, () -> {
 						mc.options.pauseOnLostFocus = false;
 						if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.PauseScreen) mc.gui.setScreen(null);
+						if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.DeathScreen && mc.player != null) {
+							mc.player.respawn();
+							mc.gui.setScreen(null);
+						}
 						return null;
 					});
 					send(ex, 200, "ok");
@@ -177,13 +181,20 @@ final class LocalApi {
 		m.put("yaw", Math.round(mc.player.getYRot()));
 		m.put("pitch", Math.round(mc.player.getXRot()));
 		m.put("blick", mc.player.getDirection().getName());
+		m.put("leben", Math.round(mc.player.getHealth() * 10) / 10.0);
+		m.put("hunger", mc.player.getFoodData().getFoodLevel());
+		long t = mc.level.getOverworldClockTime() % 24000;
+		m.put("zeit", t);
+		m.put("nacht", (t >= 12542 && t <= 23459) || mc.level.isThundering());
 		m.put("dimension", mc.level.dimension().identifier().toString());
 		m.put("fenster", mc.gui.screen() == null ? null : mc.gui.screen().getClass().getSimpleName());
 		m.put("schnellleistePlatz", mc.player.getInventory().getSelectedSlot());
 		List<String> inv = new ArrayList<>();
-		for (int i = 0; i < 36; i++) {
+		for (int i = 0; i < 41; i++) {
 			ItemStack s = mc.player.getInventory().getItem(i);
-			if (!s.isEmpty()) inv.add(i + ": " + BuiltInRegistries.ITEM.getKey(s.getItem()).getPath() + " x" + s.getCount());
+			if (!s.isEmpty()) inv.add(i + ": " + BuiltInRegistries.ITEM.getKey(s.getItem()).getPath() + " x" + s.getCount()
+				+ (s.isDamageableItem() ? " (" + (s.getMaxDamage() - s.getDamageValue()) + "/" + s.getMaxDamage() + ")" : "")
+				+ (s.isEnchanted() ? " " + s.getEnchantments().keySet().stream().map(e -> e.unwrapKey().map(k -> k.identifier().getPath()).orElse("?")).toList() : ""));
 		}
 		m.put("inventar", inv);
 		m.put("bauplan", Blueprint.progress());

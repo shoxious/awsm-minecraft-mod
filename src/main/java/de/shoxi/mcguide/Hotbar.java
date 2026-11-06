@@ -18,7 +18,12 @@ final class Hotbar {
 		if (from < 0) return -1;
 		int to = -1;
 		for (int i = 0; i < 9 && to < 0; i++) if (inv.getItem(i).isEmpty()) to = i;
-		if (to < 0) to = 8; // kein Platz frei: letzter Platz wandert ins Inventar
+		// kein Platz frei: einen Platz ohne Werkzeug, Essen oder Fackeln freimachen (der wandert ins Inventar)
+		for (int i = 8; i >= 0 && to < 0; i--) {
+			ItemStack s = inv.getItem(i);
+			if (!s.isDamageableItem() && !s.has(net.minecraft.core.component.DataComponents.FOOD) && !s.is(net.minecraft.world.item.Items.TORCH)) to = i;
+		}
+		if (to < 0) to = 8;
 		// Im Spielerinventar-Fenster liegen die Inventarplaetze 9..35 auf denselben Nummern
 		mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, from, to, ContainerInput.SWAP, mc.player);
 		return to;

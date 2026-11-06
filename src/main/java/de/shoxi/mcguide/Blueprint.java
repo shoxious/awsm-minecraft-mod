@@ -112,21 +112,75 @@ final class Blueprint {
 			finish(mc, "Bauplan fertig", ChatFormatting.GREEN);
 			return;
 		}
-		if (!night(mc)) sleptTonight = false;
-		// Nachts mit festem Weg ins Bett (nur zwischen zwei Schritten)
-		if (phase == 0 && paused == null && plan.nacht() != null && plan.bett() != null && night(mc) && !sleptTonight) {
+		if (!dusk(mc)) sleptTonight = false;
+		// Schon in der Daemmerung mit festem Weg ins Bett (nur zwischen zwei Schritten), morgens zurueck an die Arbeitsstelle
+		if (phase == 0 && paused == null && plan.nacht() != null && plan.bett() != null && dusk(mc) && !sleptTonight) {
 			sleptTonight = true;
 			paused = plan;
 			pausedIndex = index;
+			PathWalker.reset();
+			TreeJob.reset();
+			Hoch.reset();
+			release(mc);
+			BlockPos here = mc.player.blockPosition();
 			List<Step> night = new java.util.ArrayList<>(plan.nacht());
 			night.add(new Step("schlafen", null, plan.bett(), null, null, null, null, null, null, null, null, null, null, null));
 			if (plan.morgen() != null) night.addAll(plan.morgen());
+			night.add(new Step("lauf", null, new int[] {here.getX(), here.getY(), here.getZ()}, null, null, null, null, null, null, null, null, null, null, null));
 			plan = new Plan(null, night, null, null, null);
 			index = 0;
 			msg(mc, "Bauplan: es wird dunkel – gehe ins Haus schlafen", ChatFormatting.GRAY);
 			return;
 		}
+		// Monster in der Naehe: nicht kaempfen, sondern ins Haus zurueckziehen (wie abends), warten, dann weiter
+		if (paused == null && plan.nacht() != null && plan.bett() != null && (phase == 0 || List.of("lauf", "baum", "wachsen", "laub", "turm").contains(plan.steps().get(index).action()))
+			&& ++dangerTick % 10 == 0 && hostileNear(mc, mc.player.position(), 12, true)) {
+			paused = plan;
+			pausedIndex = index;
+			PathWalker.reset();
+			TreeJob.reset();
+			Hoch.reset();
+			release(mc);
+			BlockPos here = mc.player.blockPosition();
+			List<Step> flee = new java.util.ArrayList<>(plan.nacht());
+			flee.add(new Step("warten", null, new int[] {here.getX(), here.getY(), here.getZ()}, null, null, null, null, null, null, null, null, null, null, null));
+			if (plan.morgen() != null) flee.addAll(plan.morgen());
+			flee.add(new Step("lauf", null, new int[] {here.getX(), here.getY(), here.getZ()}, null, null, null, null, null, null, null, null, null, null, null));
+			plan = new Plan(null, flee, null, null, null);
+			index = 0;
+			phase = wait = 0;
+			msg(mc, "Bauplan: Monster in der Nähe – ziehe mich ins Haus zurück", ChatFormatting.GOLD);
+			return;
+		}
+		if (mc.player.isInWall()) {
+			BlockPos head = BlockPos.containing(mc.player.getEyePosition());
+			if (!mc.level.getBlockState(head).isAir()) {
+				release(mc);
+				mc.gameMode.startDestroyBlock(head, Direction.UP);
+				mc.gameMode.continueDestroyBlock(head, Direction.UP);
+				if (++wallTicks % 20 == 1) msg(mc, "Bauplan: stecke im Block – grabe mich frei", ChatFormatting.RED);
+				return;
+			}
+		}
+		wallTicks = 0;
+		// Wertvolles (Netherit oder verzaubert) nie bei Automatik dabei – Plan sofort beenden
+		if (plan.nacht() != null || paused != null) {
+			String v = valuable(mc);
+			if (v != null) {
+				finish(mc, "Bauplan gestoppt: Wertvolles im Inventar (" + v + ") – erst ins Lager legen", ChatFormatting.RED);
+				return;
+			}
+		}
 		Step st = plan.steps().get(index);
+		// Hunger: zwischen zwei Schritten (oder mitten im Laufen) erst essen
+		if (mc.player.getFoodData().getFoodLevel() < 12 && !"essen".equals(st.action()) && (phase == 0 || "lauf".equals(st.action()))
+			&& mc.player.getInventory().getNonEquipmentItems().stream().anyMatch(s -> s.has(net.minecraft.core.component.DataComponents.FOOD))) {
+			PathWalker.reset();
+			release(mc);
+			plan.steps().add(index, new Step("essen", null, null, null, null, null, null, null, null, null, null, null, null, null));
+			phase = wait = 0;
+			return;
+		}
 		// ohne festen Nachtweg: nur ein Bett in der Naehe nutzen
 		if (phase == 0 && paused == null && plan.nacht() == null && sleepTick(mc)) return;
 		switch (st.action()) {
@@ -135,10 +189,56 @@ final class Blueprint {
 			case "holen" -> fetch(mc, st);
 			case "craft" -> craft(mc, st);
 			case "use" -> use(mc, st);
+			case "essen" -> eat(mc, st);
+			case "saeule", "bruecke", "runter", "abtragen" -> {
+				Direction d = st.face() == null ? null : Direction.byName(st.face());
+				var r = switch (st.action()) {
+					case "saeule" -> Hoch.column(mc, st.pos()[0], st.pos()[2], st.pos()[1], d, st.item());
+					case "bruecke" -> Hoch.bridge(mc, d, st.count() == null ? 1 : st.count());
+					case "abtragen" -> Hoch.digDown(mc, st.pos()[1]);
+					default -> Hoch.down(mc, d, st.pos()[1]);
+				};
+				if (r == TreeJob.Result.DONE) next();
+				else if (r != TreeJob.Result.RUNNING) finish(mc, "Bauplan gestoppt: " + Hoch.error, ChatFormatting.RED);
+			}
+			case "wachsen", "baum", "laub", "turm" -> {
+				var r = switch (st.action()) {
+					case "baum" -> TreeJob.fell(mc, pos(st.pos()), st.item());
+					case "turm" -> TreeJob.tower(mc, pos(st.pos()));
+					case "laub" -> TreeJob.leaves(mc, pos(st.pos()), st.count());
+					default -> TreeJob.grow(mc, pos(st.pos()), st.count());
+				};
+				if (r == TreeJob.Result.DONE) next();
+				else if (r == TreeJob.Result.FAIL) {
+					msg(mc, "Bauplan: " + TreeJob.error, ChatFormatting.YELLOW);
+					next();
+				} else if (r == TreeJob.Result.STOP) {
+					finish(mc, "Bauplan gestoppt: " + TreeJob.error, ChatFormatting.RED);
+				}
+			}
+			case "warten" -> {
+				// im Haus warten, bis bei pos 20 s lang kein Monster mehr zu sehen ist (hoechstens 5 min); abends schlafen
+				Vec3 at = Vec3.atCenterOf(pos(st.pos()));
+				if (dusk(mc) && paused != null && paused.bett() != null) {
+					plan.steps().set(index, new Step("schlafen", null, paused.bett(), null, null, null, null, null, null, null, null, null, null, null));
+					phase = wait = 0;
+					return;
+				}
+				if (hostileNear(mc, at, 20, false)) wait = Math.min(wait, 0);
+				if (++wait > 400 || ++phase > 6000) next();
+			}
 			case "ofen" -> smelt(mc, st);
 			case "leeren", "ablegen" -> transfer(mc, st);
 			case "break" -> breakBlock(mc, st);
 			case "goto" -> walk(mc, st);
+			case "lauf" -> {
+				var r = PathWalker.tick(mc, pos(st.pos()));
+				if (r == PathWalker.Result.DONE) next();
+				else if (r == PathWalker.Result.FAIL) {
+					msg(mc, "Bauplan: " + PathWalker.error, ChatFormatting.YELLOW);
+					next();
+				}
+			}
 			case "schlafen" -> sleepAt(mc, st);
 			case "klettern" -> climb(mc, st);
 			case "anziehen" -> dress(mc, st);
@@ -156,6 +256,17 @@ final class Blueprint {
 		switch (phase) {
 			case 0 -> {
 				if (!mc.level.getBlockState(pos).canBeReplaced()) { // schon gesetzt oder belegt
+					next();
+					return;
+				}
+				if (st.click() != null && mc.level.getBlockState(pos(st.click())).canBeReplaced()) {
+					// sonst landet der Block im angeklickten (leeren) Feld, also daneben
+					msg(mc, "Bauplan: an " + pos.toShortString() + " fehlt die Stütze " + pos(st.click()).toShortString(), ChatFormatting.YELLOW);
+					next();
+					return;
+				}
+				if (st.item() != null && st.item().endsWith("_sapling") && TreeJob.inColumn(mc, pos)) {
+					msg(mc, "Bauplan: stehe auf dem Pflanzplatz " + pos.toShortString() + " – lasse ihn aus", ChatFormatting.YELLOW);
 					next();
 					return;
 				}
@@ -229,15 +340,26 @@ final class Blueprint {
 			}
 			// schnellstes Werkzeug der Schnellleiste fuer diesen Block
 			var state = mc.level.getBlockState(pos);
-			int slot = 0;
-			float best = -1;
-			for (int i = 0; i < 9; i++) {
-				float sp = mc.player.getInventory().getItem(i).getDestroySpeed(state);
-				if (sp > best) {
+			// bestes Werkzeug im ganzen Inventar (nicht nur in der Schnellleiste); nie die Axt fuer Laub, wenn es anders geht
+			int bestSlot = -1;
+			float best = 1.0f;
+			for (int i = 0; i < 36; i++) {
+				ItemStack it = mc.player.getInventory().getItem(i);
+				float sp = it.getDestroySpeed(state);
+				if (sp > best && (!it.isDamageableItem() || it.getMaxDamage() - it.getDamageValue() > 20)) {
 					best = sp;
-					slot = i;
+					bestSlot = i;
 				}
 			}
+			int slot;
+			if (bestSlot >= 0) {
+				ItemStack want = mc.player.getInventory().getItem(bestSlot);
+				slot = bestSlot < 9 ? bestSlot : Hotbar.bring(mc, s -> s == want);
+			} else { // kein Werkzeug hilft: etwas Unbeschaedigbares in die Hand, damit kein Werkzeug Haltbarkeit verliert
+				slot = -1;
+				for (int i = 0; i < 9 && slot < 0; i++) if (!mc.player.getInventory().getItem(i).isDamageableItem()) slot = i;
+			}
+			if (slot < 0) slot = mc.player.getInventory().getSelectedSlot();
 			mc.player.getInventory().setSelectedSlot(slot);
 			look(mc, Vec3.atCenterOf(pos), null);
 			phase = 1;
@@ -252,8 +374,9 @@ final class Blueprint {
 			wait = 0;
 			return;
 		}
-		if (mc.level.getBlockState(pos).isAir() || ++wait > 100) {
+		if (mc.level.getBlockState(pos).isAir() || ++wait > 400) {
 			mc.gameMode.stopDestroyBlock();
+			if (!mc.level.getBlockState(pos).isAir()) msg(mc, "Bauplan: " + pos.toShortString() + " ließ sich nicht abbauen", ChatFormatting.YELLOW);
 			next();
 			return;
 		}
@@ -263,24 +386,60 @@ final class Blueprint {
 	/** Gegenstand item in die Hand nehmen und auf click/face anwenden (z. B. Wassereimer in Kessel). */
 	private static void use(Minecraft mc, Step st) {
 		if (phase == 0) {
-			int slot = Hotbar.bring(mc, s -> is(s, st.item()));
-			if (slot < 0) {
-				msg(mc, "Bauplan: kein " + st.item() + " im Inventar", ChatFormatting.YELLOW);
-				next();
-				return;
+			if (st.item() != null) {
+				int slot = Hotbar.bring(mc, s -> is(s, st.item()));
+				if (slot < 0) {
+					msg(mc, "Bauplan: kein " + st.item() + " im Inventar", ChatFormatting.YELLOW);
+					next();
+					return;
+				}
+				mc.player.getInventory().setSelectedSlot(slot);
 			}
-			mc.options.keyShift.setDown(false);
-			mc.player.getInventory().setSelectedSlot(slot);
+			mc.options.keyShift.setDown(Boolean.TRUE.equals(st.schleichen()));
 			look(mc, hit(st).getLocation(), st.yaw());
+			if (st.pitch() != null) mc.player.setXRot(st.pitch());
 			phase = 1;
 			wait = 0;
 		} else if (phase == 1) {
 			if (++wait < 3) return;
-			mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit(st));
+			// Eimer arbeiten mit der Blickrichtung (Raytrace), nicht mit einem angeklickten Block
+			if (st.item() != null && (st.item().endsWith("_bucket") || st.item().equals("minecraft:bucket"))) mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+			else mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit(st));
 			phase = 2;
 			wait = 0;
 		} else if (++wait >= 4) {
+			mc.options.keyShift.setDown(false);
 			next();
+		}
+	}
+
+	/** essen: Essen aus der Schnellleiste essen, bis Hunger voll ist (oder count Bissen). */
+	private static void eat(Minecraft mc, Step st) {
+		var p = mc.player;
+		if (phase == 0) {
+			if (!p.getFoodData().needsFood() || (st.count() != null && wait >= st.count())) {
+				mc.options.keyUse.setDown(false);
+				next();
+				return;
+			}
+			int slot = Hotbar.bring(mc, s -> s.has(net.minecraft.core.component.DataComponents.FOOD) && (st.item() == null || is(s, st.item())));
+			if (slot < 0) {
+				msg(mc, "Bauplan: nichts zu essen in der Schnellleiste", ChatFormatting.YELLOW);
+				next();
+				return;
+			}
+			p.getInventory().setSelectedSlot(slot);
+			p.setXRot(-60); // in die Luft schauen, damit kein Block benutzt wird
+			mc.gameMode.useItem(p, InteractionHand.MAIN_HAND);
+			mc.options.keyUse.setDown(true);
+			phase = 1;
+		} else if (phase == 1) {
+			if (p.isUsingItem()) return;
+			mc.options.keyUse.setDown(false);
+			wait++;
+			phase = 2;
+		} else if (++phase > 8) {
+			phase = 0;
 		}
 	}
 
@@ -364,7 +523,16 @@ final class Blueprint {
 			phase = 2;
 			wait = 0;
 		} else {
-			if (mc.player.isSleeping() || (night(mc) && ++wait < 100)) return;
+			if (mc.player.isSleeping()) return;
+			// noch Daemmerung: am Bett warten und immer wieder versuchen, bis Schlafen geht
+			if (dusk(mc) && !night(mc) && ++wait < 2000) {
+				if (wait % 40 == 0) mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(b).add(0, 0.06, 0), Direction.UP, b, false));
+				return;
+			}
+			if (night(mc) && ++wait < 2100) {
+				if (wait % 40 == 0) mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(b).add(0, 0.06, 0), Direction.UP, b, false));
+				return;
+			}
 			if (night(mc)) msg(mc, "Bauplan: Schlafen ging nicht (Monster in der Nähe?) – arbeite weiter", ChatFormatting.YELLOW);
 			next();
 		}
@@ -474,6 +642,36 @@ final class Blueprint {
 	private static BlockPos bed;
 	private static boolean warnedNoBed;
 
+	private static int dangerTick, wallTicks;
+
+	/** Erstes wertvolles Teil im Inventar (Netherit oder verzaubert), sonst null. */
+	static String valuable(Minecraft mc) {
+		for (int i = 0; i < 41; i++) {
+			ItemStack s = mc.player.getInventory().getItem(i);
+			if (s.isEmpty()) continue;
+			String id = BuiltInRegistries.ITEM.getKey(s.getItem()).getPath();
+			if (id.startsWith("netherite_")) return id;
+			// Ausnahme: verzauberte Diamant-Axt für die Holzfarm ist erlaubt (ersetzbar)
+			if (s.isEnchanted() && !id.equals("diamond_axe")) return id;
+		}
+		return null;
+	}
+
+	/** Feindliches Wesen in Reichweite: sichtbar (oder ganz nah) und hoechstens 5 Bloecke hoeher/tiefer. */
+	private static boolean hostileNear(Minecraft mc, Vec3 at, double r, boolean sight) {
+		for (var e : mc.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, new net.minecraft.world.phys.AABB(at, at).inflate(r, 5, r))) {
+			if (!(e instanceof net.minecraft.world.entity.monster.Enemy) || !e.isAlive()) continue;
+			if (!sight || e.distanceToSqr(mc.player) < 25 || mc.player.hasLineOfSight(e)) return true;
+		}
+		return false;
+	}
+
+	/** Daemmerung: ab hier geht es heim (Monster kommen ab ca. 13000, Schlafen geht ab 12542). */
+	private static boolean dusk(Minecraft mc) {
+		long t = mc.level.getOverworldClockTime() % 24000;
+		return (t >= 11500 && t <= 23459) || mc.level.isThundering();
+	}
+
 	private static boolean night(Minecraft mc) {
 		long t = mc.level.getOverworldClockTime() % 24000;
 		return (t >= 12542 && t <= 23459) || mc.level.isThundering();
@@ -575,12 +773,13 @@ final class Blueprint {
 			java.util.Set<String> skip = new java.util.HashSet<>(st.grid() == null ? List.of() : st.grid());
 			boolean out = st.action().equals("leeren");
 			// ablegen: nur Hauptinventar; mit "sortieren": true auch die Schnellleiste (Werkzeug, Waffen, Essen, Fackeln bleiben)
-			boolean bar = !out && Boolean.TRUE.equals(st.sortieren());
+			boolean bar = !out && (Boolean.TRUE.equals(st.sortieren()) || st.item() != null);
 			int from = out ? 0 : size, to = out ? size : size + (bar ? 36 : 27);
 			for (int i = from; i < to; i++) {
 				ItemStack s = menu.getSlot(i).getItem();
 				if (s.isEmpty() || skip.contains(BuiltInRegistries.ITEM.getKey(s.getItem()).toString())) continue;
-				if (i >= size + 27 && (s.isDamageableItem() || s.has(net.minecraft.core.component.DataComponents.FOOD) || s.is(net.minecraft.world.item.Items.TORCH))) continue;
+				if (st.item() != null && !is(s, st.item())) continue; // nur dieses Item umladen
+				if (i >= size + 27 && st.item() == null && (s.isDamageableItem() || s.has(net.minecraft.core.component.DataComponents.FOOD) || s.is(net.minecraft.world.item.Items.TORCH))) continue;
 				int before = s.getCount();
 				mc.gameMode.handleContainerInput(menu.containerId, i, 0, net.minecraft.world.inventory.ContainerInput.QUICK_MOVE, mc.player);
 				if (menu.getSlot(i).getItem().getCount() == before && !menu.getSlot(i).getItem().isEmpty()) break; // voll
@@ -759,14 +958,14 @@ final class Blueprint {
 			if (++wait < 4) return;
 			int size = menu instanceof net.minecraft.world.inventory.ChestMenu c ? c.getRowCount() * 9 : 27;
 			int want = st.count() == null ? 64 : st.count();
-			for (int i = 0; i < size && taken < want; i++) {
+			// gezaehlt wird, was wirklich im Inventar ankommt (Spielerplaetze im Menue hinter den Behaelterplaetzen)
+			int have = 0;
+			for (int i = size; i < size + 36 && i < menu.slots.size(); i++) if (is(menu.getSlot(i).getItem(), st.item())) have += menu.getSlot(i).getItem().getCount();
+			if (wait == 4) taken = have; // Anfangsbestand
+			for (int i = 0; i < size && have - taken < want; i++) {
 				ItemStack s = menu.getSlot(i).getItem();
 				if (!is(s, st.item())) continue;
-				int before = s.getCount();
 				mc.gameMode.handleContainerInput(menu.containerId, i, 0, net.minecraft.world.inventory.ContainerInput.QUICK_MOVE, mc.player);
-				int n = before - menu.getSlot(i).getItem().getCount();
-				if (n <= 0) break;
-				taken += n;
 				return; // ein Stapel pro Tick
 			}
 			mc.player.closeContainer();
@@ -839,6 +1038,9 @@ final class Blueprint {
 
 	private static void finish(Minecraft mc, String text, ChatFormatting color) {
 		plan = null;
+		PathWalker.reset();
+		TreeJob.reset();
+			Hoch.reset();
 		release(mc);
 		if (mc.gameMode != null) mc.gameMode.stopDestroyBlock();
 		msg(mc, text, color);
